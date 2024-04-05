@@ -1,0 +1,6 @@
+wandb/
+**__pycache__/
+output/
+Llama-2-7b-hf/
+slimpajama-per-source-length-upsample-131072/
+.deepspeed_env
