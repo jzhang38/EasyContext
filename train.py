@@ -21,12 +21,14 @@ from easy_context.zigzag_ring_attn.monkey_patch import (
     apply_zigzag_ring_attn_monkey_patch,
 )
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
-
+from easy_context.dist_flash_attn.prepare_input import prepare_dist_flash_attn_inputs
+from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
 
 def main(args):
     if args.ring_attention:
         apply_zigzag_ring_attn_monkey_patch()
-
+    if args.dist_flash_attention:
+        apply_dist_flash_attn_monkey_patch()
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
     if args.wandb:
@@ -125,6 +127,18 @@ def main(args):
             local_input_ids = prepared["local_input_ids"]
             local_position_ids = prepared["local_position_ids"]
             local_target_ids = prepared["local_target_ids"]
+        elif args.dist_flash_attention:
+            prepared = prepare_dist_flash_attn_inputs(
+                input_ids,
+                position_ids,
+                target_ids,
+                accelerator.process_index,
+                accelerator.num_processes,
+                accelerator.device,
+            )
+            local_input_ids = prepared["local_input_ids"]
+            local_position_ids = prepared["local_position_ids"]
+            local_target_ids = prepared["local_target_ids"]
         else:
             local_input_ids = input_ids.to(accelerator.device)
             local_target_ids = target_ids.to(accelerator.device)
@@ -204,4 +218,5 @@ if __name__ == "__main__":
     args.add_argument("--seq-length", type=int, default=16384)
     args.add_argument("--debug", action="store_true")
     args.add_argument("--ring_attention", action="store_true")
+    args.add_argument("--dist_flash_attention", action="store_true")
     main(args.parse_args())
