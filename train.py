@@ -8,13 +8,17 @@ from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs, set_seed
 from tqdm import tqdm
 from transformers import set_seed, default_data_collator
-from modeling.modeling_llama import LlamaForCausalLM
+from transformers import LlamaForCausalLM
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 import math
 from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, DummyScheduler
 
 
 def main(args):
+    if args.ring_attention:
+        from easy_context.zigzag_ring_attn_monkey_patch import apply_zigzag_ring_attn_monkey_path
+        apply_zigzag_ring_attn_monkey_path()
+        
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
     if args.wandb:
@@ -36,7 +40,7 @@ def main(args):
     accelerator.print(f"Total GPUS: {accelerator.num_processes}")
 
     try:
-        train_dataset = load_dataset(args.dataset, num_proc=64)
+        train_dataset = load_dataset(args.dataset)
     except:
         train_dataset = load_from_disk(args.dataset)
     if isinstance(train_dataset, DatasetDict):
@@ -74,7 +78,6 @@ def main(args):
     # when using ring attention, we need to make sure each process load the same data. So do not prepare it with accelerator
     if not args.ring_attention:
         train_loader = accelerator.prepare(train_loader)
-
     model.gradient_checkpointing_enable()
 
     accelerator.register_for_checkpointing(scheduler)
@@ -137,7 +140,6 @@ def main(args):
             logits = model(
                 local_input_ids,
                 position_ids=local_position_ids,
-                ring_attention=args.ring_attention,
             ).logits
             loss = loss_func(
                 logits.reshape(-1, logits.shape[-1]), local_target_ids.reshape(-1)
