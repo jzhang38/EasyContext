@@ -23,13 +23,19 @@ This repo does not propose new ideas. Instead, we showcase how to combine existi
 No approximations are used. The models can be trained with **full finetuning, full attention, and full sequence length**. Our training script (train.py) has less than 200 lines of code.
 
 The techniques used are:
-- Ring attention ([Shenggui et al.](https://aclanthology.org/2023.acl-long.134/);[Liu et al.](https://arxiv.org/abs/2310.01889), and specifically Zilin's [implementation](https://github.com/zhuzilin/ring-flash-attention)).
+
+- Sequence parallelism.
 
 - [Deepspeed zero3 offload](https://www.deepspeed.ai/2021/03/07/zero3-offload.html).
 
 - [Flash attention](https://github.com/Dao-AILab/flash-attention) and its fused cross entropy kernel.
 
 - Activation checkpointing.
+
+We now supports two different sequence parallel methods:
+
+- Ring attention ([Shenggui et al.](https://aclanthology.org/2023.acl-long.134/);[Liu et al.](https://arxiv.org/abs/2310.01889), and specifically Zilin's [implementation](https://github.com/zhuzilin/ring-flash-attention))
+- Dist flash attention (previously called lightseq. [Li et al.](https://arxiv.org/html/2310.03294v2))
 
 We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope base frequency to 1B. Notably, our model is only trained with 512K sequence length while generalizing to nearly 1M context.
 
@@ -38,6 +44,9 @@ We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope b
 ```python
 from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
+# alternatively, you can use dist flash attn
+# from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
+# from easy_context.dist_flash_attn.prepare_inputs import prepare_dist_flash_attn_inputs
 from transformers import LlamaForCausalLM
 # Swap attention implementation from flash attn to flash ring attn
 apply_zigzag_ring_attn_monkey_patch()
@@ -143,6 +152,7 @@ I still remember there were a lot of discussions 2 years ago about whether spars
 
 ## TODOs
 - [X] Switching to monkey patch implementation.
+- [X] Add [dist flash attn](https://arxiv.org/html/2310.03294v2).
 - [ ] Set up a pip package.
 - [ ] EasyContext-Llama-2-13B-1M, if I have spare compute.
 - [ ] Instruction tuning.
