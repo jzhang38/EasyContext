@@ -3,7 +3,7 @@ import gc
 import sys
 import torch
 from transformers import AutoTokenizer
-from modeling.modeling_llama import LlamaForCausalLM
+from transformers import LlamaForCausalLM
 from tqdm import tqdm
 from accelerate import Accelerator
 import glob
@@ -15,6 +15,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import pandas as pd
 import random
+from easy_context.zigzag_ring_attn_monkey_patch import apply_zigzag_ring_attn_monkey_path
+apply_zigzag_ring_attn_monkey_path()
 
 SEED = 24242424
 torch.manual_seed(SEED)
@@ -69,7 +71,6 @@ def eval_forward(accelerator, model, input_ids, pad_id, answer_ids):
             local_input_ids,
             position_ids=local_position_ids,
             use_cache=False,
-            ring_attention=True,
         ).logits
         pred = logits.argmax(dim=-1)
 

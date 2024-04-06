@@ -5,13 +5,14 @@ import sys
 import torch
 import warnings
 from transformers import AutoTokenizer
-from modeling.modeling_llama import LlamaForCausalLM
+from transformers import LlamaForCausalLM
 from datasets import load_dataset
 from tqdm import tqdm
 from accelerate import Accelerator
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
-
+from easy_context.zigzag_ring_attn_monkey_patch import apply_zigzag_ring_attn_monkey_path
+apply_zigzag_ring_attn_monkey_path()
 def compute_perplexity(
     encodings,
     model,
@@ -105,7 +106,6 @@ def compute_perplexity(
                     local_input_ids,
                     position_ids=local_position_ids,
                     use_cache=False,
-                    ring_attention=True,
                 ).logits
                 neg_log_likelihood = loss_func(
                     outputs.view(-1, outputs.shape[-1]), local_target_ids.view(-1)
