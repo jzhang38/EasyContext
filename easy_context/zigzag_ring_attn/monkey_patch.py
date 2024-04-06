@@ -35,6 +35,7 @@ def new_llama_flash_attn_forward(
 
     return attn_output
 
+
 def new_llama_decoder_forward(
     self,
     hidden_states: torch.Tensor,
@@ -45,10 +46,10 @@ def new_llama_decoder_forward(
     use_cache: Optional[bool] = False,
     cache_position: Optional[torch.LongTensor] = None,
     **kwargs,
-) -> Tuple[
-    torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]
-]:
-    assert isinstance(self.self_attn, transformers.models.llama.modeling_llama.LlamaFlashAttention2), "Please toggle on the Flash Attention 2 implementation when using zigzag ring attention monkey patch."
+) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+    assert isinstance(
+        self.self_attn, transformers.models.llama.modeling_llama.LlamaFlashAttention2
+    ), "Please toggle on the Flash Attention 2 implementation when using zigzag ring attention monkey patch."
     if "padding_mask" in kwargs:
         warnings.warn(
             "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
@@ -86,7 +87,12 @@ def new_llama_decoder_forward(
         outputs += (present_key_value,)
 
     return outputs
-    
+
+
 def apply_zigzag_ring_attn_monkey_patch():
-    transformers.models.llama.modeling_llama.LlamaFlashAttention2._flash_attention_forward = new_llama_flash_attn_forward
-    transformers.models.llama.modeling_llama.LlamaDecoderLayer.forward = new_llama_decoder_forward
+    transformers.models.llama.modeling_llama.LlamaFlashAttention2._flash_attention_forward = (
+        new_llama_flash_attn_forward
+    )
+    transformers.models.llama.modeling_llama.LlamaDecoderLayer.forward = (
+        new_llama_decoder_forward
+    )
