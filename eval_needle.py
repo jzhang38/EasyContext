@@ -16,6 +16,7 @@ import seaborn as sns
 import pandas as pd
 import random
 from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
 apply_zigzag_ring_attn_monkey_patch()
 
 SEED = 24242424
@@ -46,26 +47,9 @@ def eval_forward(accelerator, model, input_ids, pad_id, answer_ids):
     position_ids = (
         torch.arange(input_ids.shape[1]).unsqueeze(0).expand(input_ids.shape[0], -1)
     )
-
-    def extract_local(value, rank, world_size, device, dim=1):
-        value_chunks = value.chunk(2 * world_size, dim=dim)
-        local_value = torch.cat(
-            [value_chunks[rank], value_chunks[2 * world_size - rank - 1]], dim=dim
-        )
-        return local_value.to(device)
-
-    local_input_ids = extract_local(
-        input_ids,
-        accelerator.process_index,
-        accelerator.num_processes,
-        accelerator.device,
-    )
-    local_position_ids = extract_local(
-        position_ids,
-        accelerator.process_index,
-        accelerator.num_processes,
-        accelerator.device,
-    )
+    prepared = prepare_zigzag_ring_attn_inputs(input_ids, position_ids, None, accelerator.process_index, accelerator.num_processes, accelerator.device)
+    local_input_ids = prepared["local_input_ids"]  
+    local_position_ids = prepared["local_position_ids"]
     with torch.inference_mode():
         logits = model(
             local_input_ids,
