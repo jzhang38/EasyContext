@@ -45,8 +45,8 @@ We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope b
 from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
 # Alternatively, you can use dist flash attn
-# from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
-# from easy_context.dist_flash_attn.prepare_inputs import prepare_dist_flash_attn_inputs
+from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
+from easy_context.dist_flash_attn.prepare_inputs import prepare_dist_flash_attn_inputs
 from transformers import LlamaForCausalLM
 # Swap attention implementation from flash attn to flash ring attn
 apply_zigzag_ring_attn_monkey_patch()
