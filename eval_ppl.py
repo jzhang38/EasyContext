@@ -10,11 +10,19 @@ from datasets import load_dataset
 from tqdm import tqdm
 from accelerate import Accelerator
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
-# from torch.nn import CrossEntropyLoss
-import time
+
 
 def compute_perplexity(
-    encodings, model, tokenizer, add_start_token: bool = True, accelerator=None, max_length=None, sliding_window=256, truncate=False, aggressive_memory=False, hide_progress=False,
+    encodings,
+    model,
+    tokenizer,
+    add_start_token: bool = True,
+    accelerator=None,
+    max_length=None,
+    sliding_window=256,
+    truncate=False,
+    aggressive_memory=False,
+    hide_progress=False,
 ):
 
     device = accelerator.device
@@ -39,7 +47,7 @@ def compute_perplexity(
     nlls = []
     for encoding_index in range(0, len(encoded_texts)):
 
-        labels = torch.tensor(encoded_texts[encoding_index:encoding_index+1])
+        labels = torch.tensor(encoded_texts[encoding_index : encoding_index + 1])
         seq_len = labels.size(1)
 
         prev_end_loc = 0
@@ -51,29 +59,60 @@ def compute_perplexity(
 
             if add_start_token:
                 bos_tokens_tensor = torch.tensor(
-                    [[tokenizer.bos_token_id]] * input_ids.size(dim=0))
-                input_ids = torch.cat(
-                    [bos_tokens_tensor, input_ids], dim=1)
+                    [[tokenizer.bos_token_id]] * input_ids.size(dim=0)
+                )
+                input_ids = torch.cat([bos_tokens_tensor, input_ids], dim=1)
 
             target_ids = input_ids.clone()
             target_ids[:, :-trg_len] = -100
             # move target to the left by one (remember to add one new -100)
             target_ids = target_ids.roll(-1, dims=1)
             target_ids[:, -1] = -100
-            position_ids = torch.arange(target_ids.shape[1]).unsqueeze(0).expand(input_ids.shape[0], -1)
+            position_ids = (
+                torch.arange(target_ids.shape[1])
+                .unsqueeze(0)
+                .expand(input_ids.shape[0], -1)
+            )
+
             def extract_local(value, rank, world_size, device, dim=1):
                 value_chunks = value.chunk(2 * world_size, dim=dim)
                 local_value = torch.cat(
-                    [value_chunks[rank], value_chunks[2 * world_size - rank - 1]], dim=dim
+                    [value_chunks[rank], value_chunks[2 * world_size - rank - 1]],
+                    dim=dim,
                 )
                 return local_value.to(device)
-            local_input_ids = extract_local(input_ids, accelerator.process_index, accelerator.num_processes, accelerator.device) 
-            local_target_ids = extract_local(target_ids, accelerator.process_index, accelerator.num_processes, accelerator.device) 
-            local_position_ids = extract_local(position_ids, accelerator.process_index, accelerator.num_processes, accelerator.device)
+
+            local_input_ids = extract_local(
+                input_ids,
+                accelerator.process_index,
+                accelerator.num_processes,
+                accelerator.device,
+            )
+            local_target_ids = extract_local(
+                target_ids,
+                accelerator.process_index,
+                accelerator.num_processes,
+                accelerator.device,
+            )
+            local_position_ids = extract_local(
+                position_ids,
+                accelerator.process_index,
+                accelerator.num_processes,
+                accelerator.device,
+            )
             with torch.inference_mode():
-                outputs = model(local_input_ids, position_ids = local_position_ids,use_cache=False, ring_attention=True).logits
-                neg_log_likelihood = loss_func(outputs.view(-1, outputs.shape[-1]), local_target_ids.view(-1))
-                neg_log_likelihood = accelerator.reduce(neg_log_likelihood, reduction="mean")
+                outputs = model(
+                    local_input_ids,
+                    position_ids=local_position_ids,
+                    use_cache=False,
+                    ring_attention=True,
+                ).logits
+                neg_log_likelihood = loss_func(
+                    outputs.view(-1, outputs.shape[-1]), local_target_ids.view(-1)
+                )
+                neg_log_likelihood = accelerator.reduce(
+                    neg_log_likelihood, reduction="mean"
+                )
             if aggressive_memory:
                 outputs = None
                 input_ids = None
@@ -99,7 +138,8 @@ def compute_perplexity(
 def main(args):
     models = [x[0] for x in args.model]
     tokenizer = AutoTokenizer.from_pretrained(
-        "meta-llama/Llama-2-7b-hf", model_max_length=sys.maxsize, trust_remote_code=True)
+        "meta-llama/Llama-2-7b-hf", model_max_length=sys.maxsize, trust_remote_code=True
+    )
     tokenizer.pad_token = tokenizer.eos_token
 
     if args.tokenized:
@@ -107,10 +147,12 @@ def main(args):
             input_texts = datasets.load_from_disk(args.tokenized)
         except:
             input_texts = datasets.load_dataset(
-                args.tokenized, name=args.subset, split=args.split)
+                args.tokenized, name=args.subset, split=args.split
+            )
     else:
         input_texts = datasets.load_dataset(
-            args.dataset, name=args.subset, split=args.split)
+            args.dataset, name=args.subset, split=args.split
+        )
 
         def tokenize(example):
             tokenized = tokenizer(
@@ -134,14 +176,18 @@ def main(args):
 
     if args.dataset_min_tokens:
         input_texts = input_texts.filter(
-            lambda x: x["tokenized_len"] >= args.dataset_min_tokens, keep_in_memory=True, num_proc=64)
+            lambda x: x["tokenized_len"] >= args.dataset_min_tokens,
+            keep_in_memory=True,
+            num_proc=64,
+        )
     print("Dataset size after fildering:", len(input_texts))
     if args.samples:
-        input_texts = input_texts[:args.samples]
+        input_texts = input_texts[: args.samples]
 
     if args.tokens_step:
-        tokens = [x for x in range(
-            args.min_tokens, args.max_tokens + 1, args.tokens_step)]
+        tokens = [
+            x for x in range(args.min_tokens, args.max_tokens + 1, args.tokens_step)
+        ]
     else:
         tokens = [args.min_tokens]
         while args.min_tokens < args.max_tokens:
@@ -154,18 +200,31 @@ def main(args):
     results = []
     accelerator = Accelerator(
         mixed_precision="bf16",
-        )
+    )
     for model in tqdm(models, desc="Model", leave=False, disable=args.hide_progress):
         torch.cuda.empty_cache()
-        loaded = LlamaForCausalLM.from_pretrained(model, torch_dtype=torch.bfloat16,_attn_implementation="flash_attention_2", device_map=accelerator.device,)
+        loaded = LlamaForCausalLM.from_pretrained(
+            model,
+            torch_dtype=torch.bfloat16,
+            _attn_implementation="flash_attention_2",
+            device_map=accelerator.device,
+        )
         loaded = accelerator.prepare(loaded)
         loaded.gradient_checkpointing_enable()
         result = []
         for max_length in tokens:
-            ppl = compute_perplexity(model=loaded, tokenizer=tokenizer, accelerator=accelerator, encodings=input_texts,
-                                     add_start_token=tokenizer.bos_token is not None, max_length=max_length,
-                                     sliding_window=args.sliding_window, truncate=args.truncate,
-                                     aggressive_memory=args.aggressive_memory, hide_progress=args.hide_progress)['mean_perplexity']
+            ppl = compute_perplexity(
+                model=loaded,
+                tokenizer=tokenizer,
+                accelerator=accelerator,
+                encodings=input_texts,
+                add_start_token=tokenizer.bos_token is not None,
+                max_length=max_length,
+                sliding_window=args.sliding_window,
+                truncate=args.truncate,
+                aggressive_memory=args.aggressive_memory,
+                hide_progress=args.hide_progress,
+            )["mean_perplexity"]
             if accelerator.is_local_main_process:
                 print(f"{model}: {max_length}={ppl}")
             result.append(ppl)

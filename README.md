@@ -45,7 +45,7 @@ There are still some red bricks. I am not sure if instruction tuning or heavier 
 #### Perplexity
 
 <p align="center">
-  <img src="data/debug.csv.png" width="800">
+  <img src="data/ppl.png" width="800">
 </p>
 
 It is tested on 2 documents with 500K to 600K length in the proofpile test set(the longest I can find).
@@ -95,6 +95,7 @@ accelerate launch --config_file  accelerate_configs/deepspeed_inference.yaml --n
     --truncate \
     --aggressive-memory \
     -m PY007/EasyContext-1M-Llama-2-7B
+python plot.py data/debug.csv --xmax 550000 --ymax 2 --ymin 1.5
 ```
 
 ## Training
