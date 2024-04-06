@@ -32,10 +32,10 @@ The techniques used are:
 
 - Activation checkpointing.
 
-We now supports two different sequence parallel methods:
+We now support two different sequence parallel methods:
 
 - Ring attention ([Shenggui et al.](https://aclanthology.org/2023.acl-long.134/);[Liu et al.](https://arxiv.org/abs/2310.01889), and specifically Zilin's [implementation](https://github.com/zhuzilin/ring-flash-attention))
-- Dist flash attention (previously called lightseq. [Li et al.](https://arxiv.org/html/2310.03294v2))
+- Dist flash attention (previously called LightSeq. [Li et al.](https://arxiv.org/html/2310.03294v2))
 
 We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope base frequency to 1B. Notably, our model is only trained with 512K sequence length while generalizing to nearly 1M context.
 
@@ -44,7 +44,7 @@ We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope b
 ```python
 from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
-# alternatively, you can use dist flash attn
+# Alternatively, you can use dist flash attn
 # from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
 # from easy_context.dist_flash_attn.prepare_inputs import prepare_dist_flash_attn_inputs
 from transformers import LlamaForCausalLM
@@ -52,7 +52,7 @@ from transformers import LlamaForCausalLM
 apply_zigzag_ring_attn_monkey_patch()
 # Make sure you toggle on flash_attention_2
 model = AutoModelForCausalLM.from_pretrained(model_name, _attn_implementation="flash_attention_2")
-# Do not prepare dataloader to avoid distributed sampler. We need to make sure every process loads the same data and shard its ourselves
+# Do not prepare the dataloader to avoid the distributed sampler. We need to make sure every process loads the same data and shard its ourselves
 model, optim, scheduler = accelerator.prepare(model, optim, scheduler)
 
 # In your training loop...
@@ -115,7 +115,7 @@ accelerate launch --num_processes 8 --config_file  accelerate_configs/deepspeed_
 The above command takes around 6 hours. To reduce time, consider increasing the context_interval and depth_interval.
 
 #### Perplexity
-There are only two ducments in proofpile test with length longer than 500K.
+There are only two documents in proofpile test with length longer than 500K.
 
 ```python
 accelerate launch --config_file  accelerate_configs/deepspeed_inference.yaml --num_processes 8 --main_process_port 6000 eval_ppl.py \
@@ -148,7 +148,7 @@ Switching from data parallel to ring attention results in a minor, but not signi
 |512K, ring attention     | 2133 tokens/s      |
 | 700K, ring attention    | 1603 tokens/s       |
 
-I still remember there were a lot of discussions 2 years ago about whether sparse attention is relevant and one big counter argument is that the quadratic complexity of self-attention is not dominant. I think it is time to revisit this in the long context era. 
+I still remember there were a lot of discussions 2 years ago about whether sparse attention is relevant and one big counterargument is that the quadratic complexity of self-attention is not dominant. I think it is time to revisit this in the long context era. 
 
 ## TODOs
 - [X] Switching to monkey patch implementation.
