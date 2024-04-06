@@ -2,6 +2,9 @@
   "bf16": {
     "enabled": "auto"
   },
+  "fp16": {
+    "enabled": "auto"
+  },
   "scheduler": {
     "type": "WarmupDecayLR",
     "params": {
