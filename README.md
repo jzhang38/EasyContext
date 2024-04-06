@@ -33,6 +33,31 @@ The techniques used are:
 
 We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope base frequency to 1B. Notably, our model is only trained with 512K sequence length while generalizing to nearly 1M context.
 
+## Usage
+
+```python
+from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
+from transformers import LlamaForCausalLM
+# Swap attention implementation from flash attn to flash ring attn
+apply_zigzag_ring_attn_monkey_patch()
+# Make sure you toggle on flash_attention_2
+model = AutoModelForCausalLM.from_pretrained(model_name, _attn_implementation="flash_attention_2")
+# Do not prepare dataloader to avoid distributed sampler. We need to make sure every process loads the same data and shard its ourselves
+model, optim, scheduler = accelerator.prepare(model, optim, scheduler)
+
+# In your training loop...
+for step, batch in enumerate(train_dataloader):
+  # Shard the sequences
+  prepared = prepare_zigzag_ring_attn_inputs(batch["input_ids"], batch["position_ids"], batch["target_ids"], accelerator.process_index, accelerator.num_processes, accelerator.device)
+  local_input_ids = prepared["local_input_ids"]  
+  local_position_ids = prepared["local_position_ids"]
+  local_target_ids = prepared["local_target_ids"]
+  # Then do model forward as usual
+  logits = model(local_input_ids,position_ids=local_position_ids,).logits
+```
+
+
 ## Results
 #### Needle-in-a-haystack 
 
@@ -117,6 +142,8 @@ Switching from data parallel to ring attention results in a minor, but not signi
 I still remember there were a lot of discussions 2 years ago about whether sparse attention is relevant and one big counter argument is that the quadratic complexity of self-attention is not dominant. I think it is time to revisit this in the long context era. 
 
 ## TODOs
+- [X] Switching to monkey patch implementation.
+- [ ] Set up a pip package.
 - [ ] EasyContext-Llama-2-13B-1M, if I have spare compute.
 - [ ] Instruction tuning.
 - [ ] EasyContext-Mistral-7B-1M, if I have spare compute.
