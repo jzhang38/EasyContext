@@ -21,12 +21,15 @@ from easy_context.zigzag_ring_attn.monkey_patch import (
     apply_zigzag_ring_attn_monkey_patch,
 )
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
-
+from easy_context.dist_flash_attn.prepare_input import prepare_dist_flash_attn_inputs
+from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
 
 def main(args):
     if args.ring_attention:
         apply_zigzag_ring_attn_monkey_patch()
-
+    if args.dist_flash_attention:
+        apply_dist_flash_attn_monkey_patch()
+    
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
     if args.wandb:
@@ -106,15 +109,20 @@ def main(args):
         )
         # shard the input_ids according to the world size and rank according to zig zag attention
 
-        def extract_local(value, rank, world_size, device, dim=1):
-            value_chunks = value.chunk(2 * world_size, dim=dim)
-            local_value = torch.cat(
-                [value_chunks[rank], value_chunks[2 * world_size - rank - 1]], dim=dim
-            )
-            return local_value.to(device)
-
         if args.ring_attention:
             prepared = prepare_zigzag_ring_attn_inputs(
+                input_ids,
+                position_ids,
+                target_ids,
+                accelerator.process_index,
+                accelerator.num_processes,
+                accelerator.device,
+            )
+            local_input_ids = prepared["local_input_ids"]
+            local_position_ids = prepared["local_position_ids"]
+            local_target_ids = prepared["local_target_ids"]
+        elif args.dist_flash_attention:
+            prepared = prepare_dist_flash_attn_inputs(
                 input_ids,
                 position_ids,
                 target_ids,
@@ -142,7 +150,16 @@ def main(args):
             accelerator.backward(loss)
 
             if accelerator.sync_gradients:
-                loss_log = {"loss": loss.item(), "ppl": math.exp(loss.item())}
+                # pay attention here. When any seq parallel algo is turned on. This technically only log the very first chunk's loss
+                # and what is the first chunk really depends on how do you shard the sequence
+                # for zig zag attention, the first chunk contains the left most and rightmost tokens
+                # so you cannot compare the (logged) loss of dist attention and zigzag ring attention.
+                # loss_log = {"loss": loss.item(), "ppl": math.exp(loss.item())}
+                
+                # we now try gathered loss to verify if ring attention and dist flash attention produce the same loss
+                # this may slow down the training
+                gathered_loss = accelerator.reduce(loss.clone().detach(), "mean")
+                loss_log = {"loss": gathered_loss.item(), "ppl": math.exp(gathered_loss.item())}
                 accelerator.log(loss_log, step=completed_steps)
 
             optim.step()
@@ -204,4 +221,5 @@ if __name__ == "__main__":
     args.add_argument("--seq-length", type=int, default=16384)
     args.add_argument("--debug", action="store_true")
     args.add_argument("--ring_attention", action="store_true")
+    args.add_argument("--dist_flash_attention", action="store_true")
     main(args.parse_args())
