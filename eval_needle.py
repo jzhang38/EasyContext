@@ -15,8 +15,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import pandas as pd
 import random
-from easy_context.zigzag_ring_attn_monkey_patch import apply_zigzag_ring_attn_monkey_path
-apply_zigzag_ring_attn_monkey_path()
+from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+apply_zigzag_ring_attn_monkey_patch()
 
 SEED = 24242424
 torch.manual_seed(SEED)

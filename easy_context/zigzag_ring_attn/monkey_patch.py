@@ -87,6 +87,6 @@ def new_llama_decoder_forward(
 
     return outputs
     
-def apply_zigzag_ring_attn_monkey_path():
+def apply_zigzag_ring_attn_monkey_patch():
     transformers.models.llama.modeling_llama.LlamaFlashAttention2._flash_attention_forward = new_llama_flash_attn_forward
     transformers.models.llama.modeling_llama.LlamaDecoderLayer.forward = new_llama_decoder_forward
