@@ -11,8 +11,8 @@ from tqdm import tqdm
 from accelerate import Accelerator
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
-from easy_context.zigzag_ring_attn_monkey_patch import apply_zigzag_ring_attn_monkey_path
-apply_zigzag_ring_attn_monkey_path()
+from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+apply_zigzag_ring_attn_monkey_patch()
 def compute_perplexity(
     encodings,
     model,

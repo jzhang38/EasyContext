@@ -12,12 +12,11 @@ from transformers import LlamaForCausalLM
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 import math
 from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, DummyScheduler
-
-
+from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
 def main(args):
     if args.ring_attention:
-        from easy_context.zigzag_ring_attn_monkey_patch import apply_zigzag_ring_attn_monkey_path
-        apply_zigzag_ring_attn_monkey_path()
+        apply_zigzag_ring_attn_monkey_patch()
         
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -104,37 +103,16 @@ def main(args):
                 [value_chunks[rank], value_chunks[2 * world_size - rank - 1]], dim=dim
             )
             return local_value.to(device)
-
-        local_input_ids = (
-            extract_local(
-                input_ids,
-                accelerator.process_index,
-                accelerator.num_processes,
-                accelerator.device,
-            )
-            if args.ring_attention
-            else input_ids.to(accelerator.device)
-        )
-        local_target_ids = (
-            extract_local(
-                target_ids,
-                accelerator.process_index,
-                accelerator.num_processes,
-                accelerator.device,
-            )
-            if args.ring_attention
-            else target_ids.to(accelerator.device)
-        )
-        local_position_ids = (
-            extract_local(
-                position_ids,
-                accelerator.process_index,
-                accelerator.num_processes,
-                accelerator.device,
-            )
-            if args.ring_attention
-            else position_ids.to(accelerator.device)
-        )
+        if args.ring_attention:
+            prepared = prepare_zigzag_ring_attn_inputs(input_ids, position_ids, target_ids, accelerator.process_index, accelerator.num_processes, accelerator.device)
+            local_input_ids = prepared["local_input_ids"]  
+            local_position_ids = prepared["local_position_ids"]
+            local_target_ids = prepared["local_target_ids"]
+        else:
+            local_input_ids = input_ids.to(accelerator.device)
+            local_target_ids = target_ids.to(accelerator.device)
+            local_position_ids = position_ids.to(accelerator.device)
+        
         loss_log = None
         with accelerator.accumulate(model):
             logits = model(
