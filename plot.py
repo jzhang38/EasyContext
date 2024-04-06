@@ -1,12 +1,11 @@
-
-
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 def main(args):
     data = pd.read_csv(args.csv)
-    fig, ax = plt.subplots(figsize=(10,5))
+    fig, ax = plt.subplots(figsize=(10, 5))
 
     x_data = [float(x) for x in data.columns[1:]]
     for row in data.values:
@@ -23,6 +22,7 @@ def main(args):
 
     fig.savefig(args.csv + ".png")
     fig.savefig(args.csv + ".pdf", transparent=True)
+
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
