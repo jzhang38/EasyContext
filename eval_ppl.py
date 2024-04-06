@@ -11,9 +11,14 @@ from tqdm import tqdm
 from accelerate import Accelerator
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
-from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+from easy_context.zigzag_ring_attn.monkey_patch import (
+    apply_zigzag_ring_attn_monkey_patch,
+)
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
+
 apply_zigzag_ring_attn_monkey_patch()
+
+
 def compute_perplexity(
     encodings,
     model,
@@ -76,8 +81,15 @@ def compute_perplexity(
                 .expand(input_ids.shape[0], -1)
             )
 
-            prepared = prepare_zigzag_ring_attn_inputs(input_ids, position_ids, target_ids, accelerator.process_index, accelerator.num_processes, accelerator.device)
-            local_input_ids = prepared["local_input_ids"]  
+            prepared = prepare_zigzag_ring_attn_inputs(
+                input_ids,
+                position_ids,
+                target_ids,
+                accelerator.process_index,
+                accelerator.num_processes,
+                accelerator.device,
+            )
+            local_input_ids = prepared["local_input_ids"]
             local_position_ids = prepared["local_position_ids"]
             local_target_ids = prepared["local_target_ids"]
             with torch.inference_mode():

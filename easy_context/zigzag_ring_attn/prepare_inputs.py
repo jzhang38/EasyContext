@@ -1,5 +1,6 @@
 import torch
 
+
 def extract_local(value, rank, world_size, device, dim=1):
     value_chunks = value.chunk(2 * world_size, dim=dim)
     local_value = torch.cat(
@@ -7,7 +8,10 @@ def extract_local(value, rank, world_size, device, dim=1):
     )
     return local_value.to(device)
 
-def prepare_zigzag_ring_attn_inputs(input_ids, position_ids, target_ids, rank, world_size, device):
+
+def prepare_zigzag_ring_attn_inputs(
+    input_ids, position_ids, target_ids, rank, world_size, device
+):
     local_input_ids = extract_local(
         input_ids,
         rank,
@@ -29,4 +33,8 @@ def prepare_zigzag_ring_attn_inputs(input_ids, position_ids, target_ids, rank, w
         )
     else:
         local_target_ids = None
-    return {"local_input_ids": local_input_ids, "local_position_ids": local_position_ids, "local_target_ids": local_target_ids}
+    return {
+        "local_input_ids": local_input_ids,
+        "local_position_ids": local_position_ids,
+        "local_target_ids": local_target_ids,
+    }
