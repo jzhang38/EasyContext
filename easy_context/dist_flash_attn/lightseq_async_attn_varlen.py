@@ -106,7 +106,7 @@ def _rescale_kernel(
         acc = acc / l_i[:, None]
         L_ptrs = L + off_hz * N_CTX + offs_m
         tl.store(L_ptrs, m_i_sync / 1.44269504 + tl.math.log(l_i))
-    tl.store(o_block_ptr, acc.to(tl.float16), boundary_check=(0, 1))
+    tl.store(o_block_ptr, acc.to(tl.bfloat16), boundary_check=(0, 1))
 
 @triton.jit
 def _fwd_kernel(
@@ -180,7 +180,7 @@ def _fwd_kernel(
     qk_scale = sm_scale * 1.44269504
     # load q: it will stay in SRAM throughout
     q = tl.load(Q_block_ptr, boundary_check=(0,), padding_option='zero')
-    q = (q * qk_scale).to(tl.float16)
+    q = (q * qk_scale).to(tl.bfloat16)
     # loop over k, v and update accumulator
     lo = 0
     hi = (start_m + 1) * BLOCK_M if IS_CAUSAL else N_CTX
@@ -200,7 +200,7 @@ def _fwd_kernel(
         # -- scale and update acc --
         acc_scale = l_i * 0 + alpha  # workaround some compiler bug
         acc *= acc_scale[:, None]
-        acc += tl.dot(p.to(tl.float16), v)
+        acc += tl.dot(p.to(tl.bfloat16), v)
         # -- update m_i and l_i --
         l_i = l_i * alpha + tl.sum(p, 1)
         m_i = m_i_new
@@ -215,7 +215,7 @@ def _fwd_kernel(
         acc = acc / l_i[:, None]
         L_ptrs = L + off_hz * seqlen_q_rounded + offs_m
         tl.store(L_ptrs, m_i / 1.44269504 + tl.math.log(l_i))
-    tl.store(O_block_ptr, acc.to(tl.float16), boundary_check=(0, 1))
+    tl.store(O_block_ptr, acc.to(tl.bfloat16), boundary_check=(0, 1))
 
 # for gqa/mqa to expand kv heads
 def maybe_repeat_kv_fwd(nqh, kv):
@@ -482,7 +482,7 @@ dist_attn_varlen = _attention_varlen.apply
 
 #@pytest.mark.parametrize('causal', [False, True])
 #@pytest.mark.parametrize('Z, H, N_CTX, D_HEAD', [(6, 9, 1024, 64)])
-def test_op(Z, H, N_CTX, D_HEAD, causal, dtype=torch.float16):
+def test_op(Z, H, N_CTX, D_HEAD, causal, dtype=torch.bfloat16):
     torch.manual_seed(20)
     rank = dist.get_rank()
     world_size = dist.get_world_size()
@@ -540,7 +540,7 @@ def test_op(Z, H, N_CTX, D_HEAD, causal, dtype=torch.float16):
     print(f"rank {rank} passes backward")
 
 #TODO(High Priority): Investigate why rank 0 tends to have larger numerical difference.
-def test_gqa(Z, H, KVH, N_CTX, D_HEAD, causal, dtype=torch.float16):
+def test_gqa(Z, H, KVH, N_CTX, D_HEAD, causal, dtype=torch.bfloat16):
     torch.manual_seed(177)
     q = torch.empty((Z, H, N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0., std=0.5).requires_grad_()
     k = torch.empty((Z, KVH, N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0., std=0.5).requires_grad_()
@@ -645,11 +645,11 @@ configs = [triton.testing.Benchmark(
     styles=[('red', '-'), ('blue', '-')],
     ylabel='ms',
     plot_name=f'fused-attention-batch{BATCH}-head{N_HEADS}-d{D_HEAD}-{mode}-{causal}',
-    args={'H': N_HEADS, 'BATCH': BATCH, 'D_HEAD': D_HEAD, 'dtype': torch.float16, 'mode': mode, 'causal': causal}
+    args={'H': N_HEADS, 'BATCH': BATCH, 'D_HEAD': D_HEAD, 'dtype': torch.bfloat16, 'mode': mode, 'causal': causal}
 ) for mode in ["all"] for causal in [True]]
 
 # @triton.testing.perf_report(configs)
-def bench_flash_attention(BATCH, H, KVH, N_CTX, D_HEAD, causal, mode, provider, args, dtype=torch.float16, device="cuda"):
+def bench_flash_attention(BATCH, H, KVH, N_CTX, D_HEAD, causal, mode, provider, args, dtype=torch.bfloat16, device="cuda"):
     assert mode == "all" #mode in ['fwd', 'bwd']
     n_warmup = 10
     n_repeat = 10

@@ -29,6 +29,7 @@ def main(args):
         apply_zigzag_ring_attn_monkey_patch()
     if args.dist_flash_attention:
         apply_dist_flash_attn_monkey_patch()
+    
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
     if args.wandb:
@@ -107,13 +108,6 @@ def main(args):
             torch.arange(args.seq_length).unsqueeze(0).expand(input_ids.shape[0], -1)
         )
         # shard the input_ids according to the world size and rank according to zig zag attention
-
-        def extract_local(value, rank, world_size, device, dim=1):
-            value_chunks = value.chunk(2 * world_size, dim=dim)
-            local_value = torch.cat(
-                [value_chunks[rank], value_chunks[2 * world_size - rank - 1]], dim=dim
-            )
-            return local_value.to(device)
 
         if args.ring_attention:
             prepared = prepare_zigzag_ring_attn_inputs(

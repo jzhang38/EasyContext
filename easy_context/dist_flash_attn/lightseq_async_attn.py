@@ -9,7 +9,7 @@ import torch
 import torch.distributed as dist
 from torch.distributed import ReduceOp
 #from torch.profiler import profile, record_function, ProfilerActivity
-
+import functools
 import triton
 import triton.language as tl
 import time
@@ -105,7 +105,7 @@ def _rescale_kernel(
         acc = acc / l_i[:, None]
         L_ptrs = L + off_hz * N_CTX + offs_m
         tl.store(L_ptrs, m_i_sync / 1.44269504 + tl.math.log(l_i))
-    tl.store(o_block_ptr, acc.to(tl.float16))
+    tl.store(o_block_ptr, acc.to(tl.bfloat16))
 
 @triton.jit
 def _fwd_kernel(
@@ -177,7 +177,7 @@ def _fwd_kernel(
     qk_scale = sm_scale * 1.44269504
     # load q: it will stay in SRAM throughout
     q = tl.load(Q_block_ptr)
-    q = (q * qk_scale).to(tl.float16)
+    q = (q * qk_scale).to(tl.bfloat16)
     # loop over k, v and update accumulator
     lo = 0
     hi = (start_m + 1) * BLOCK_M if IS_CAUSAL else N_CTX
@@ -197,7 +197,7 @@ def _fwd_kernel(
         # -- scale and update acc --
         acc_scale = l_i * 0 + alpha  # workaround some compiler bug
         acc *= acc_scale[:, None]
-        acc += tl.dot(p.to(tl.float16), v)
+        acc += tl.dot(p.to(tl.bfloat16), v)
         # -- update m_i and l_i --
         l_i = l_i * alpha + tl.sum(p, 1)
         m_i = m_i_new
@@ -212,7 +212,7 @@ def _fwd_kernel(
         acc = acc / l_i[:, None]
         L_ptrs = L + off_hz * N_CTX + offs_m
         tl.store(L_ptrs, m_i / 1.44269504 + tl.math.log(l_i))
-    tl.store(O_block_ptr, acc.to(tl.float16))
+    tl.store(O_block_ptr, acc.to(tl.bfloat16))
 
 # for gqa/mqa to expand kv heads
 def maybe_repeat_kv_fwd(nqh, kv):
@@ -373,7 +373,7 @@ def _lightseq_backward(do, q, k, v, o, L, sm_scale, comm_mode, backward_engine):
         if is_compute_for_local_query(time_step):
             if time_step == 0:
                 if backward_engine == "flash":
-                    _flash_attn_backward(do, q, k, v, o, L, dq, dk, dv, 0.0, sm_scale, True, None)
+                    _flash_attn_backward(do, q, k, v, o, L, dq, dk, dv, 0.0, sm_scale, True, (-1,-1), None, False)
                 else:
                     inp = Inputs(query=q, key=maybe_repeat_kv_bwd(q.shape[2], k), value=maybe_repeat_kv_bwd(q.shape[2], v), attn_bias=xformers.ops.LowerTriangularMask(), p=0, scale=sm_scale)
                     op_ctx = Context(lse=L, out=o, rng_state=None)
@@ -383,7 +383,7 @@ def _lightseq_backward(do, q, k, v, o, L, sm_scale, comm_mode, backward_engine):
                     dk, dv = maybe_reduce_dkv(nkvh, grads.dk), maybe_reduce_dkv(nkvh, grads.dv)
             else:
                 if backward_engine == "flash":
-                    _flash_attn_backward(do, q, peer_k[buffer_idx_2], peer_v[buffer_idx_2], o, L, dq_delta[buffer_idx_2], dk_delta[buffer_idx_2], dv_delta[buffer_idx_2], 0.0, sm_scale, False, None)
+                    _flash_attn_backward(do, q, peer_k[buffer_idx_2], peer_v[buffer_idx_2], o, L, dq_delta[buffer_idx_2], dk_delta[buffer_idx_2], dv_delta[buffer_idx_2], 0.0, sm_scale, False, (-1,-1), None, False)
                 else:
                     inp = Inputs(query=q, key=maybe_repeat_kv_bwd(q.shape[2], peer_k[buffer_idx_2]), value=maybe_repeat_kv_bwd(q.shape[2], peer_v[buffer_idx_2]), attn_bias=None, p=0, scale=sm_scale)
                     op_ctx = Context(lse=L, out=o, rng_state=None)
@@ -395,7 +395,7 @@ def _lightseq_backward(do, q, k, v, o, L, sm_scale, comm_mode, backward_engine):
             pass
         else:
             if backward_engine == "flash":
-                _flash_attn_backward(peer_do[buffer_idx_2], peer_q[buffer_idx_2], k, v, peer_o[buffer_idx_2], peer_L[buffer_idx_2], dq_delta[buffer_idx_2], dk_delta[buffer_idx_2], dv_delta[buffer_idx_2], 0.0, sm_scale, False, None)
+                _flash_attn_backward(peer_do[buffer_idx_2], peer_q[buffer_idx_2], k, v, peer_o[buffer_idx_2], peer_L[buffer_idx_2], dq_delta[buffer_idx_2], dk_delta[buffer_idx_2], dv_delta[buffer_idx_2], 0.0, sm_scale, False, (-1,-1), None, False)
             else:
                 inp = Inputs(query=peer_q[buffer_idx_2], key=maybe_repeat_kv_bwd(q.shape[2], k), value=maybe_repeat_kv_bwd(q.shape[2], v), attn_bias=None, p=0, scale=sm_scale)
                 op_ctx = Context(lse=peer_L[buffer_idx_2], out=peer_o[buffer_idx_2], rng_state=None)
@@ -465,7 +465,7 @@ attention = _attention.apply
 
 #@pytest.mark.parametrize('causal', [False, True])
 #@pytest.mark.parametrize('Z, H, N_CTX, D_HEAD', [(6, 9, 1024, 64)])
-def test_op(Z, H, N_CTX, D_HEAD, causal, dtype=torch.float16):
+def test_op(Z, H, N_CTX, D_HEAD, causal, dtype=torch.bfloat16):
     torch.manual_seed(20)
     q = torch.empty((Z, H, N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0., std=0.5).requires_grad_()
     k = torch.empty((Z, H, N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0., std=0.5).requires_grad_()
@@ -513,7 +513,7 @@ def test_op(Z, H, N_CTX, D_HEAD, causal, dtype=torch.float16):
     print(f"rank {rank} passes backward")
 
 
-def test_gqa(Z, H, KVH, N_CTX, D_HEAD, causal, dtype=torch.float16):
+def test_gqa(Z, H, KVH, N_CTX, D_HEAD, causal, dtype=torch.bfloat16):
     torch.manual_seed(177)
     q = torch.empty((Z, H, N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0., std=0.5).requires_grad_()
     k = torch.empty((Z, KVH, N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0., std=0.5).requires_grad_()
@@ -615,11 +615,11 @@ configs = [triton.testing.Benchmark(
     styles=[('red', '-'), ('blue', '-')],
     ylabel='ms',
     plot_name=f'fused-attention-batch{BATCH}-head{N_HEADS}-d{D_HEAD}-{mode}-{causal}',
-    args={'H': N_HEADS, 'BATCH': BATCH, 'D_HEAD': D_HEAD, 'dtype': torch.float16, 'mode': mode, 'causal': causal}
+    args={'H': N_HEADS, 'BATCH': BATCH, 'D_HEAD': D_HEAD, 'dtype': torch.bfloat16, 'mode': mode, 'causal': causal}
 ) for mode in ["all"] for causal in [True]]
 
 # @triton.testing.perf_report(configs)
-def bench_flash_attention(BATCH, H, KVH, N_CTX, D_HEAD, causal, mode, provider, args, dtype=torch.float16, device="cuda"):
+def bench_flash_attention(BATCH, H, KVH, N_CTX, D_HEAD, causal, mode, provider, args, dtype=torch.bfloat16, device="cuda"):
     assert mode == "all" #mode in ['fwd', 'bwd']
     n_warmup = 10
     n_repeat = 10
