@@ -150,7 +150,16 @@ def main(args):
             accelerator.backward(loss)
 
             if accelerator.sync_gradients:
-                loss_log = {"loss": loss.item(), "ppl": math.exp(loss.item())}
+                # pay attention here. When any seq parallel algo is turned on. This technically only log the very first chunk's loss
+                # and what is the first chunk really depends on how do you shard the sequence
+                # for zig zag attention, the first chunk contains the left most and rightmost tokens
+                # so you cannot compare the (logged) loss of dist attention and zigzag ring attention.
+                # loss_log = {"loss": loss.item(), "ppl": math.exp(loss.item())}
+                
+                # we now try gathered loss to verify if ring attention and dist flash attention produce the same loss
+                # this may slow down the training
+                gathered_loss = accelerator.reduce(loss.clone().detach(), "mean")
+                loss_log = {"loss": gathered_loss.item(), "ppl": math.exp(gathered_loss.item())}
                 accelerator.log(loss_log, step=completed_steps)
 
             optim.step()
