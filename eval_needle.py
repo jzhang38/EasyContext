@@ -15,12 +15,12 @@ from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import pandas as pd
 import random
-from easy_context.zigzag_ring_attn.monkey_patch import (
-    apply_zigzag_ring_attn_monkey_patch_llama,
+from easy_context import (
+    prepare_seq_parallel_inputs,
+    apply_seq_parallel_monkey_patch,
 )
-from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
+apply_seq_parallel_monkey_patch("zigzag_ring_attn", "llama")
 
-apply_zigzag_ring_attn_monkey_patch_llama()
 
 SEED = 24242424
 torch.manual_seed(SEED)
@@ -50,7 +50,8 @@ def eval_forward(accelerator, model, input_ids, pad_id, answer_ids):
     position_ids = (
         torch.arange(input_ids.shape[1]).unsqueeze(0).expand(input_ids.shape[0], -1)
     )
-    prepared = prepare_zigzag_ring_attn_inputs(
+    prepared = prepare_seq_parallel_inputs(
+        "zigzag_ring_attn",
         input_ids,
         position_ids,
         None,

@@ -14,9 +14,8 @@ from flash_attn.losses.cross_entropy import CrossEntropyLoss
 from easy_context import (
     prepare_seq_parallel_inputs,
     apply_seq_parallel_monkey_patch,
-    prepare_dataloader,
 )
-
+apply_seq_parallel_monkey_patch("zigzag_ring_attn", "llama")
 
 def compute_perplexity(
     encodings,
@@ -80,7 +79,8 @@ def compute_perplexity(
                 .expand(input_ids.shape[0], -1)
             )
 
-            prepared = prepare_zigzag_ring_attn_inputs(
+            prepared = prepare_seq_parallel_inputs(
+                "zigzag_ring_attn",
                 input_ids,
                 position_ids,
                 target_ids,
