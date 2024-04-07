@@ -14,7 +14,8 @@ train.py \
 --dataset yaofu/slimpajama-per-source-length-upsample \
 --model meta-llama/Llama-2-7b-hf  \
 --seq-length 32768 \
---rope-theta 1000000
+--rope-theta 1000000 \
+--parallel_mode data_parallel
 
 # In the saved files, there are model-00001-of-00003.safetensors to model-00001-of-00003.safetensors. Somehow model.safetensors is unnecessary and should be removed.
 rm output/7B_32K_bs_1M_rope_1M_step_1000_lr_2e-5/model.safetensors
@@ -32,7 +33,8 @@ train.py \
 --dataset yaofu/slimpajama-per-source-length-upsample \
 --model output/7B_32K_bs_1M_rope_1M_step_1000_lr_2e-5  \
 --seq-length 65536 \
---rope-theta 5000000
+--rope-theta 5000000 \
+--parallel_mode data_parallel
 
 rm output/7B_64K_bs_1M_rope_5M_step_1000_lr_2e-5/model.safetensors
 
