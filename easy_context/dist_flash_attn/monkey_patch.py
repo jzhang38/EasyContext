@@ -603,7 +603,7 @@ def forward(
     )
 
 
-def apply_dist_flash_attn_monkey_patch():
+def apply_dist_flash_attn_monkey_patch_llama():
     initialize_distributed()
     transformers.models.llama.modeling_llama.LlamaModel.forward = forward
     transformers.models.llama.modeling_llama.LlamaDecoderLayer.forward = llama_layer_forward

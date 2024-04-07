@@ -46,11 +46,11 @@ train.py \
 --wandb EasyContext \
 --max-train-steps 500  \
 --learning-rate 2e-5  \
---dataset PY007/SP_chunk_256K_downsample_4096_0.1_per_source \
+--dataset PY007/slimpajama_llama_tokenized_upsample_4096_chunk_256K \
 --model PY007/Llama2-7B-64K  \
 --seq-length 256000 \
 --rope-theta 10000000 \
---ring_attention
+--parallel_mode zigzag_ring_attn
 
 rm output/7B_0.256M_bs_1M_rope_10M_step_500_lr_2e-5/model.safetensors
 
@@ -64,11 +64,11 @@ train.py \
 --wandb EasyContext \
 --max-train-steps 500  \
 --learning-rate 2e-5  \
---dataset PY007/SP_chunk_1M_downsample_4096_0.1_per_source \
+--dataset PY007/slimpajama_llama_tokenized_upsample_4096_chunk_256K \
 --model output/7B_0.256M_bs_1M_rope_10M_step_500_lr_2e-5  \
 --seq-length 256000 \
 --rope-theta 25000000 \
---ring_attention
+--parallel_mode zigzag_ring_attn
 
 rm output/7B_0.256M_bs_1M_rope_25M_step_500_lr_2e-5/model.safetensors
 
@@ -82,11 +82,11 @@ train.py \
 --wandb EasyContext \
 --max-train-steps 150  \
 --learning-rate 2e-5  \
---dataset PY007/SP_chunk_1M_downsample_4096_0.1_per_source \
+--dataset PY007/slimpajama_llama_tokenized_upsample_4096_chunk_256K \
 --model output/7B_0.256M_bs_1M_rope_25M_step_500_lr_2e-5  \
 --seq-length 256000 \
 --rope-theta 50000000 \
---ring_attention
+--parallel_mode zigzag_ring_attn
 
 rm output/7B_0.256M_bs_1M_rope_50M_step_150_lr_2e-5/model.safetensors
 
@@ -100,11 +100,11 @@ train.py \
 --wandb EasyContext \
 --max-train-steps 300  \
 --learning-rate 2e-5  \
---dataset PY007/SP_chunk_1M_downsample_4096_0.1_per_source \
+--dataset PY007/slimpajama_llama_tokenized_upsample_4096_chunk_1M \
 --model output/7B_0.256M_bs_1M_rope_50M_step_150_lr_2e-5  \
 --seq-length 512000 \
 --rope-theta 100000000 \
---ring_attention
+--parallel_mode zigzag_ring_attn
 
 
 rm output/7B_0.5M_bs_1M_rope_100M_step_300_lr_2e-5/model.safetensors
@@ -119,11 +119,11 @@ train.py \
 --wandb EasyContext \
 --max-train-steps 90  \
 --learning-rate 1e-5  \
---dataset PY007/SP_chunk_1M_downsample_4096_0.1_per_source \
+--dataset PY007/slimpajama_llama_tokenized_upsample_4096_chunk_1M \
 --model output/7B_0.5M_bs_1M_rope_100M_step_300_lr_2e-5  \
 --seq-length 512000 \
 --rope-theta 250000000 \
---ring_attention
+--parallel_mode zigzag_ring_attn
 
 rm output/7B_0.5M_bs_1M_rope_250M_step_90_lr_2e-5/model.safetensors
 
