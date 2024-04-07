@@ -42,23 +42,20 @@ We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope b
 ## Usage
 
 ```python
-from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
-from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
-# Alternatively, you can use dist flash attn
-from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
-from easy_context.dist_flash_attn.prepare_inputs import prepare_dist_flash_attn_inputs
+from easy_context import prepare_seq_parallel_inputs, apply_seq_parallel_monkey_patch, prepare_dataloader
 from transformers import LlamaForCausalLM
 # Swap attention implementation from flash attn to flash ring attn
-apply_zigzag_ring_attn_monkey_patch()
+apply_seq_parallel_monkey_patch("dist_ring_attn", "llama")
 # Make sure you toggle on flash_attention_2
-model = AutoModelForCausalLM.from_pretrained(model_name, _attn_implementation="flash_attention_2")
-# Do not prepare the dataloader to avoid the distributed sampler. We need to make sure every process loads the same data and shard its ourselves
-model, optim, scheduler = accelerator.prepare(model, optim, scheduler)
+model = LlamaForCausalLM.from_pretrained(model_name, _attn_implementation="flash_attention_2")
+accelerator = ...
+train_dataloader = ...
+prepare_dataloader("dist_ring_attn", train_dataloader, accelerator)
 
 # In your training loop...
 for step, batch in enumerate(train_dataloader):
   # Shard the sequences
-  prepared = prepare_zigzag_ring_attn_inputs(batch["input_ids"], batch["position_ids"], batch["target_ids"], accelerator.process_index, accelerator.num_processes, accelerator.device)
+  prepared = prepare_seq_parallel_inputs("dist_ring_attn", batch["input_ids"], batch["position_ids"], batch["target_ids"], accelerator.process_index, accelerator.num_processes, accelerator.device)
   local_input_ids = prepared["local_input_ids"]  
   local_position_ids = prepared["local_position_ids"]
   local_target_ids = prepared["local_target_ids"]

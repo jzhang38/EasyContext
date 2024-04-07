@@ -8,7 +8,8 @@ from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs, set_seed
 from tqdm import tqdm
 from transformers import set_seed, default_data_collator
-from transformers import LlamaForCausalLM
+from transformers import AutoModelForCausalLM
+import transformers
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 import math
 from accelerate.utils import (
@@ -17,19 +18,14 @@ from accelerate.utils import (
     DummyOptim,
     DummyScheduler,
 )
-from easy_context.zigzag_ring_attn.monkey_patch import (
-    apply_zigzag_ring_attn_monkey_patch,
+from easy_context import (
+    prepare_seq_parallel_inputs,
+    apply_seq_parallel_monkey_patch,
+    prepare_dataloader,
 )
-from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
-from easy_context.dist_flash_attn.prepare_input import prepare_dist_flash_attn_inputs
-from easy_context.dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch
+
 
 def main(args):
-    if args.ring_attention:
-        apply_zigzag_ring_attn_monkey_patch()
-    if args.dist_flash_attention:
-        apply_dist_flash_attn_monkey_patch()
-    
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
     if args.wandb:
@@ -47,7 +43,7 @@ def main(args):
         kwargs_handlers=[timeout],
         # fsdp_plugin=fsdp_plugin,
     )
-    accelerator.init_trackers(project_name=args.wandb)
+    accelerator.init_trackers(project_name=args.wandb, init_kwargs={"wandb":{"name":args.output_dir.split("/")[-1]}})
     accelerator.print(f"Total GPUS: {accelerator.num_processes}")
 
     try:
@@ -57,13 +53,22 @@ def main(args):
     if isinstance(train_dataset, DatasetDict):
         train_dataset = train_dataset["train"]
 
-    model = LlamaForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         args.model,
         device_map=accelerator.device,
         torch_dtype=torch.bfloat16,
         rope_theta=args.rope_theta,
         _attn_implementation="flash_attention_2",
     )
+
+    assert isinstance(
+        model, (transformers.LlamaForCausalLM, transformers.MistralForCausalLM)
+    ), "Only support llama and mistral model"
+    model_type = (
+        "llama" if isinstance(model, transformers.LlamaForCausalLM) else "mistral"
+    )
+    apply_seq_parallel_monkey_patch(args.parallel_mode, model_type)
+
     if "input_ids" not in train_dataset.column_names:
         raise RuntimeError("Dataset must include an `input_ids` feature")
     # remove everything that is not input_ids
@@ -86,9 +91,7 @@ def main(args):
         num_warmup_steps=args.warmup_steps,
     )
     model, optim, scheduler = accelerator.prepare(model, optim, scheduler)
-    # when using ring attention, we need to make sure each process load the same data. So do not prepare it with accelerator
-    if not args.ring_attention:
-        train_loader = accelerator.prepare(train_loader)
+    train_loader = prepare_dataloader(args.parallel_mode, train_loader, accelerator)
     model.gradient_checkpointing_enable()
 
     accelerator.register_for_checkpointing(scheduler)
@@ -109,34 +112,18 @@ def main(args):
         )
         # shard the input_ids according to the world size and rank according to zig zag attention
 
-        if args.ring_attention:
-            prepared = prepare_zigzag_ring_attn_inputs(
-                input_ids,
-                position_ids,
-                target_ids,
-                accelerator.process_index,
-                accelerator.num_processes,
-                accelerator.device,
-            )
-            local_input_ids = prepared["local_input_ids"]
-            local_position_ids = prepared["local_position_ids"]
-            local_target_ids = prepared["local_target_ids"]
-        elif args.dist_flash_attention:
-            prepared = prepare_dist_flash_attn_inputs(
-                input_ids,
-                position_ids,
-                target_ids,
-                accelerator.process_index,
-                accelerator.num_processes,
-                accelerator.device,
-            )
-            local_input_ids = prepared["local_input_ids"]
-            local_position_ids = prepared["local_position_ids"]
-            local_target_ids = prepared["local_target_ids"]
-        else:
-            local_input_ids = input_ids.to(accelerator.device)
-            local_target_ids = target_ids.to(accelerator.device)
-            local_position_ids = position_ids.to(accelerator.device)
+        prepared = prepare_seq_parallel_inputs(
+            args.parallel_mode,
+            input_ids,
+            position_ids,
+            target_ids,
+            accelerator.process_index,
+            accelerator.num_processes,
+            accelerator.device,
+        )
+        local_input_ids = prepared["local_input_ids"]
+        local_position_ids = prepared["local_position_ids"]
+        local_target_ids = prepared["local_target_ids"]
 
         loss_log = None
         with accelerator.accumulate(model):
@@ -155,11 +142,14 @@ def main(args):
                 # for zig zag attention, the first chunk contains the left most and rightmost tokens
                 # so you cannot compare the (logged) loss of dist attention and zigzag ring attention.
                 # loss_log = {"loss": loss.item(), "ppl": math.exp(loss.item())}
-                
+
                 # we now try gathered loss to verify if ring attention and dist flash attention produce the same loss
                 # this may slow down the training
                 gathered_loss = accelerator.reduce(loss.clone().detach(), "mean")
-                loss_log = {"loss": gathered_loss.item(), "ppl": math.exp(gathered_loss.item())}
+                loss_log = {
+                    "loss": gathered_loss.item(),
+                    "ppl": math.exp(gathered_loss.item()),
+                }
                 accelerator.log(loss_log, step=completed_steps)
 
             optim.step()
@@ -220,6 +210,9 @@ if __name__ == "__main__":
     args.add_argument("--log-loss", type=str)
     args.add_argument("--seq-length", type=int, default=16384)
     args.add_argument("--debug", action="store_true")
-    args.add_argument("--ring_attention", action="store_true")
-    args.add_argument("--dist_flash_attention", action="store_true")
+    args.add_argument(
+        "--parallel_mode",
+        type=str,
+        choices=["zigzag_ring_attn", "dist_flash_attn", "data_parallel"],
+    )
     main(args.parse_args())
