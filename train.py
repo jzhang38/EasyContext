@@ -43,7 +43,7 @@ def main(args):
         kwargs_handlers=[timeout],
         # fsdp_plugin=fsdp_plugin,
     )
-    accelerator.init_trackers(project_name=args.wandb)
+    accelerator.init_trackers(project_name=args.wandb, init_kwargs={"wandb":{"name":args.output_dir.split("/")[-1]}})
     accelerator.print(f"Total GPUS: {accelerator.num_processes}")
 
     try:
