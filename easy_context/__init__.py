@@ -43,6 +43,6 @@ def apply_seq_parallel_monkey_patch(
         
 def prepare_dataloader(seq_algo, dataloader, acclerator):
     if seq_algo == "data_parallel":
-        return acclerator.prepare_dataloader(dataloader)
+        return acclerator.prepare(dataloader)
     else:
         return dataloader

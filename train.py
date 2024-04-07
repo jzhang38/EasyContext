@@ -58,6 +58,7 @@ def main(args):
         device_map=accelerator.device,
         torch_dtype=torch.bfloat16,
         rope_theta=args.rope_theta,
+        sliding_window=None,
         _attn_implementation="flash_attention_2",
     )
 
