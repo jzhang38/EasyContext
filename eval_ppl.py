@@ -11,12 +11,11 @@ from tqdm import tqdm
 from accelerate import Accelerator
 from flash_attn.losses.cross_entropy import CrossEntropyLoss
 
-from easy_context.zigzag_ring_attn.monkey_patch import (
-    apply_zigzag_ring_attn_monkey_patch,
+from easy_context import (
+    prepare_seq_parallel_inputs,
+    apply_seq_parallel_monkey_patch,
+    prepare_dataloader,
 )
-from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
-
-apply_zigzag_ring_attn_monkey_patch()
 
 
 def compute_perplexity(
@@ -95,8 +94,7 @@ def compute_perplexity(
             with torch.inference_mode():
                 outputs = model(
                     local_input_ids,
-                    position_ids=local_position_ids,
-                    use_cache=False,
+                    position_ids=local_position_ids
                 ).logits
                 neg_log_likelihood = loss_func(
                     outputs.view(-1, outputs.shape[-1]), local_target_ids.view(-1)
@@ -129,7 +127,10 @@ def compute_perplexity(
 def main(args):
     models = [x[0] for x in args.model]
     tokenizer = AutoTokenizer.from_pretrained(
-        "meta-llama/Llama-2-7b-hf", model_max_length=sys.maxsize, trust_remote_code=True
+        models[0],
+        model_max_length=sys.maxsize,
+        trust_remote_code=True,
+        add_bos_token=True,
     )
     tokenizer.pad_token = tokenizer.eos_token
 

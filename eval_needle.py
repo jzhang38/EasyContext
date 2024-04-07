@@ -15,10 +15,12 @@ from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import pandas as pd
 import random
-from easy_context.zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch
+from easy_context.zigzag_ring_attn.monkey_patch import (
+    apply_zigzag_ring_attn_monkey_patch_llama,
+)
 from easy_context.zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs
 
-apply_zigzag_ring_attn_monkey_patch()
+apply_zigzag_ring_attn_monkey_patch_llama()
 
 SEED = 24242424
 torch.manual_seed(SEED)
@@ -134,7 +136,10 @@ def construct_prompt(
 def main(args):
     model = args.model
     tokenizer = AutoTokenizer.from_pretrained(
-        "meta-llama/Llama-2-7b-hf", model_max_length=sys.maxsize, trust_remote_code=True
+        args.model,
+        model_max_length=sys.maxsize,
+        trust_remote_code=True,
+        add_bos_token=True,
     )
     tokenizer.pad_token = tokenizer.eos_token
     accelerator = Accelerator(
