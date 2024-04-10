@@ -1,6 +1,7 @@
 # You can observe that the number of steps for different stage is quite different. They are not magic number. They are set to those numbers simply because I esitimate the time it takes to finish the training, and 
 # choose the number such that it fits my daily schedule>_<. This is for you to exactly reproduce my results. You many change the steps to other numbers if you want to.
 
+export PYTORCH_CUDA_ALLOC_CONF='max_split_size_mb:1024' 
 
 accelerate launch \
 --config_file  accelerate_configs/single_node.yaml \
