@@ -5,3 +5,5 @@ Llama-2-7b-hf/
 slimpajama-per-source-length-upsample-131072/
 .deepspeed_env
 yaofu_data
+mistral_data
+mistral_data_1M

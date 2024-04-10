@@ -12,7 +12,6 @@ ring_flash_attn@git+https://github.com/zhuzilin/ring-flash-attention
 deepspeed==0.14.0
 transformers==4.39.1
 wandb
-quanto
 seaborn
 pandas
-
+pytest
