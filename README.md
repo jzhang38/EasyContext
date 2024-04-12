@@ -87,7 +87,7 @@ The code is tested on Python 3.10.0, PyTorch 2.4.0 (nightly), and CUDA 11.8.
 
 ```bash
 conda create -n easycontext python=3.10 -y && conda activate easycontext
-pip install --pre torch==2.4.0.dev20240324  --index-url https://download.pytorch.org/whl/nightly/cu121
+pip install --pre torch==2.4.0.dev20240324  --index-url https://download.pytorch.org/whl/nightly/cu118
 pip install packaging &&  pip install ninja && pip install flash-attn --no-build-isolation --no-cache-dir
 pip install -r requirements.txt
 ```
