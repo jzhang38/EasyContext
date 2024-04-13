@@ -131,7 +131,7 @@ python plot.py data/debug.csv --xmax 550000 --ymax 2 --ymin 1.5
 
 ## Training
 
-See train.sh
+See train_scripts/
 
 ## Speed
 
@@ -185,3 +185,6 @@ If you find this work useful, a citation will be appreciated via:
     Title = {EasyContext}
 }
 ```
+and also consider giving a star >_<
+
+[![Star History Chart](https://api.star-history.com/svg?repos=jzhang38/EasyContext&type=Date)](https://star-history.com/#jzhang38/EasyContext&Date)

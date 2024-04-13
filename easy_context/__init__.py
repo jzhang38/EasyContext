@@ -3,7 +3,7 @@ from .dist_flash_attn.monkey_patch import apply_dist_flash_attn_monkey_patch_lla
 from .zigzag_ring_attn.prepare_inputs import prepare_zigzag_ring_attn_inputs    
 from .zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch_llama    
 from .zigzag_ring_attn.monkey_patch import apply_zigzag_ring_attn_monkey_patch_mistral
-
+from .unsloth_offloaded_gradient_checkpoint.monkey_patch import apply_unsloth_offloaded_gradient_checkpoint_monkey_patch
 
 def prepare_seq_parallel_inputs(
     seq_algo, input_ids, position_ids, target_ids, rank, world_size, device
