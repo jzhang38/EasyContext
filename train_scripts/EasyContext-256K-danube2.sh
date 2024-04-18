@@ -1,5 +1,5 @@
-# First, download h2oai/h2o-danube2-1.8b-base to output/h2o-danube2-1.8b-base and change the "architectures" from MistralForCausalLM to LlamaForCausalLM in the config.json file.
-# Something's off with the Mistral model, so I'm using the Llama model instead.
+# First, download h2oai/h2o-danube2-1.8b-base to output/h2o-danube2-1.8b-base and change the "architectures" from MistralForCausalLM to LlamaForCausalLM and "model_type" from mistral to llama in the config.json file.
+# HF's mistral architecture is off when used together with ring attention due to the way it implements rotary embedding. Llama has no such issue.
 
 accelerate launch \
 --config_file  accelerate_configs/single_node.yaml \
@@ -161,3 +161,5 @@ train.py \
 --seq-length 256000 \
 --rope-theta 100000000 \
 --parallel_mode zigzag_ring_attn
+
+
