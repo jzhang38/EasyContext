@@ -50,7 +50,7 @@ train.py \
 --max-train-steps 500  \
 --learning-rate 2e-5  \
 --dataset PY007/slimpajama_llama_tokenized_upsample_4096_chunk_256K \
---model PY007/Llama2-7B-64K  \
+--model output/7B_64K_bs_1M_rope_5M_step_1000_lr_2e-5  \
 --seq-length 256000 \
 --rope-theta 10000000 \
 --parallel_mode zigzag_ring_attn
