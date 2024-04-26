@@ -84,13 +84,13 @@ def main(args):
         shuffle=True,
         batch_size=args.batch_size,
     )
-
+    if args.learning_rate != 2e-5:
+        accelerator.print(f"Warning: You also need to modify accelerate_configs/zero3_offload.json to change the learning rate")
     optim = DummyOptim(model.parameters(), lr=args.learning_rate)
     scheduler = DummyScheduler(
         optim,
         num_training_steps=args.max_train_steps,
         total_num_steps=args.max_train_steps,
-        num_warmup_steps=args.warmup_steps,
     )
     model, optim, scheduler = accelerator.prepare(model, optim, scheduler)
     train_loader = prepare_dataloader(args.parallel_mode, train_loader, accelerator)
@@ -192,11 +192,9 @@ if __name__ == "__main__":
     args.add_argument("--batch-size", type=int, default=1)
     args.add_argument("--gradient-accumulate-every", type=int, default=8)
     args.add_argument("--output-dir", type=str, required=True)
-    args.add_argument("--lora", action="store_true")
     args.add_argument("--wandb", type=str)
     args.add_argument("--seed", type=int, default=42)
     args.add_argument("--max-train-steps", type=int, default=400)
-    args.add_argument("--warmup-steps", type=int, default=20)
     args.add_argument("--learning-rate", type=float, default=2e-5)
     args.add_argument("--rope-theta", type=float, default=100000)
     args.add_argument("--model", type=str, default="meta-llama/Llama-2-7b-hf")
@@ -205,13 +203,7 @@ if __name__ == "__main__":
         type=str,
         default="emozilla/pg_books-tokenized-bos-eos-chunked-65536",
     )
-    args.add_argument("--num-proc", type=int, default=32)
-    args.add_argument(
-        "--lr-schedule", type=str, choices=["linear", "constant"], default="linear"
-    )
-    args.add_argument("--log-loss", type=str)
     args.add_argument("--seq-length", type=int, default=16384)
-    args.add_argument("--debug", action="store_true")
     args.add_argument(
         "--parallel_mode",
         type=str,
