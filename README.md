@@ -39,6 +39,9 @@ We now support two different sequence parallel methods:
 
 We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope base frequency to 1B. Notably, our model is only trained with 512K sequence length while generalizing to nearly 1M context.
 
+## Updates
+- [05/06] Add distorctors (multi-needle) in the NIAH evaluation script . You can set the number of distractors using --num_distractor.
+- [05/06] IMPOPTANT! If you want to use eval_needle.py to evaluate the llama3 model, you need to add one extra space (" ") behind the QUESTION_STR. I believe this has something to do with the tokenizer. 
 ## Usage
 
 ```python
