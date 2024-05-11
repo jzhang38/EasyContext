@@ -207,6 +207,6 @@ if __name__ == "__main__":
     args.add_argument(
         "--parallel_mode",
         type=str,
-        choices=["zigzag_ring_attn", "dist_flash_attn", "data_parallel"],
+        choices=["zigzag_ring_attn", "dist_flash_attn", "ulysses_attn", "data_parallel"],
     )
     main(args.parse_args())
