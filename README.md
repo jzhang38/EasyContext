@@ -13,7 +13,7 @@ Memory optimization and training recipes to extrapolate language models' context
 
 ## What is this?
 
-Many companies have been promoting their models' capability to handle long context. For those outside the companies, a context of 1 million tokens still seems somewhat magical or requiring enormous compute.  **This repo aims to demystify long context scaling and show that it is actually quite straightforward.**
+Many companies have been promoting their models' capability to handle long context. For those outside the companies, a context of 1 million tokens still seems somewhat magical or requires enormous compute.  **This repo aims to demystify long context scaling and show that it is actually quite straightforward.**
  
 This repo does not propose new ideas. Instead, we showcase how to combine existing techniques to train language models with a context length of:
 
@@ -32,10 +32,11 @@ The techniques used are:
 
 - Activation checkpointing.
 
-We now support two different sequence parallel methods:
+We support different sequence parallel methods:
 
 - Ring attention ([Shenggui et al.](https://aclanthology.org/2023.acl-long.134/);[Liu et al.](https://arxiv.org/abs/2310.01889), and specifically Zilin's [implementation](https://github.com/zhuzilin/ring-flash-attention))
 - Dist flash attention (previously called LightSeq. [Li et al.](https://arxiv.org/html/2310.03294v2))
+- Deepspeed Ulysses ([Jacobs et al.](https://arxiv.org/abs/2309.14509) and Jiarui's [implementation](https://github.com/feifeibear/long-context-attention))
 
 We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope base frequency to 1B. Notably, our model is only trained with 512K sequence length while generalizing to nearly 1M context.
 
