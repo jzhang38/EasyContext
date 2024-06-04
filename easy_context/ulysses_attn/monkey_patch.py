@@ -3,9 +3,13 @@ from typing import List, Optional, Tuple, Union
 import warnings
 import torch
 import torch.utils.checkpoint
-from yunchang.ulysses import UlyssesAttention
+try:
+    from yunchang.ulysses import UlyssesAttention
+    ulysses_attn = UlyssesAttention()
+except:
+    print("If you want to use the UlyssesAttention class, please install the yunchang package.")
+    ulysses_attn = None
 
-ulysses_attn = UlyssesAttention()
 
 def new_flash_attn_forward(
     self,
