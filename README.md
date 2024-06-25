@@ -10,7 +10,11 @@
 
 Memory optimization and training recipes to extrapolate language models' context length to 1 million tokens, with minimal hardware.
 
-
+## Updates
+- [06/25] EasyContext is part of our effort to develop [LongVA](https://lmms-lab.github.io/posts/longva/), a long context vision language model. Check it out if it interests you!
+- [05/11] Add Ulysses.
+- [05/06] Add distractors (multi-needle) in the NIAH evaluation script. You can set the number of distractors using --num_distractor.
+- [05/06] IMPORTANT! If you want to use eval_needle.py to evaluate the llama3 model, you need to add one extra space (" ") behind the QUESTION_STR. I believe this has something to do with the tokenizer.
 ## What is this?
 
 Many companies have been promoting their models' capability to handle long context. For those outside the companies, a context of 1 million tokens still seems somewhat magical or requires enormous compute.  **This repo aims to demystify long context scaling and show that it is actually quite straightforward.**
@@ -40,10 +44,7 @@ We support different sequence parallel methods:
 
 We then proceed to train Llama-2-7B on 8 A100 by gradually increasing its rope base frequency to 1B. Notably, our model is only trained with 512K sequence length while generalizing to nearly 1M context.
 
-## Updates
-- [05/11] Add Ulysses.
-- [05/06] Add distractors (multi-needle) in the NIAH evaluation script. You can set the number of distractors using --num_distractor.
-- [05/06] IMPORTANT! If you want to use eval_needle.py to evaluate the llama3 model, you need to add one extra space (" ") behind the QUESTION_STR. I believe this has something to do with the tokenizer. 
+
 ## Usage
 
 ```python
