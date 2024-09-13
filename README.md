@@ -34,6 +34,8 @@ The techniques used are:
 
 - [Flash attention](https://github.com/Dao-AILab/flash-attention) and its fused cross entropy kernel.
 
+- [USP (yunchang)](https://github.com/feifeibear/long-context-attention)  for its Ulysses implementation and Unified Sequence Parallelism.
+
 - Activation checkpointing.
 
 We support different sequence parallel methods:
@@ -178,6 +180,7 @@ This work is built on top of the following papers/repositories:
 - [Ring-Flash-Attention](https://github.com/zhuzilin/ring-flash-attention)
 - [Yarn](https://github.com/jquesnelle/yarn)
 - [Long-Context Data Engineering](https://github.com/FranxYao/Long-Context-Data-Engineering)
+- [Yunchang](https://github.com/feifeibear/long-context-attention)
 
 
 ## Citation

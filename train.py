@@ -207,6 +207,7 @@ if __name__ == "__main__":
     args.add_argument(
         "--parallel_mode",
         type=str,
-        choices=["zigzag_ring_attn", "dist_flash_attn", "ulysses_attn", "data_parallel"],
+        choices=["zigzag_ring_attn", "dist_flash_attn", "ulysses_attn", "usp_attn", "data_parallel"],
     )
+    args.add_argument("--ring_degree", type=int, default=1)
     main(args.parse_args())

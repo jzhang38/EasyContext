@@ -8,10 +8,11 @@ scikit-learn
 matplotlib
 pandas
 numpy
-ring_flash_attn@git+https://github.com/zhuzilin/ring-flash-attention
 deepspeed==0.14.0
 transformers==4.39.1
 wandb
 seaborn
 pandas
 pytest
+yunchang==0.3.0
+ring_flash_attn@git+https://github.com/zhuzilin/ring-flash-attention
