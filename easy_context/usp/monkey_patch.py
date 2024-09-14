@@ -5,7 +5,7 @@ import torch
 import torch.utils.checkpoint
 try:
     from yunchang import LongContextAttention, set_seq_parallel_pg
-    usp_attn = LongContextAttention()
+    usp_attn = LongContextAttention(ring_impl_type="zigzag")
 except:
     print("If you want to use the LongContextAttention class, please install the yunchang package.")
     usp_attn = None
