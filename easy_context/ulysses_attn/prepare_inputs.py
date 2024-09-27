@@ -1,6 +1,5 @@
 import torch
 
-
 def extract_local(value, rank, world_size, device, dim=1):
     dimension_size = value.shape[dim]
     sub_seq_length = dimension_size // world_size
